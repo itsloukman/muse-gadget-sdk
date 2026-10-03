@@ -39,11 +39,11 @@
 
 static const char *TAG = "muse_menu";
 
-#define COLOR_TEXT 0xf2efff
-#define COLOR_DIM 0x8b84a8
-#define COLOR_ACCENT 0xa77dff
-#define COLOR_SELECTED 0x2e2552
-#define COLOR_RULE 0x2a2345
+#define COLOR_TEXT 0xf0f0f0
+#define COLOR_DIM 0x8a8a8a
+#define COLOR_ACCENT 0xbdbdbd
+#define COLOR_SELECTED 0x2e2e2e
+#define COLOR_RULE 0x2a2a2a
 #define COLOR_DANGER 0xff5c5c
 
 /* 128 px screens want a smaller face than the 14 px every board has. */

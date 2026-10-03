@@ -58,13 +58,14 @@ typedef struct {
 } scheme_t;
 
 static const scheme_t SCHEMES[MUSE_MODE_COUNT] = {
-    [MUSE_MODE_BOOT]      = { { 0xffffff, 0xcfe0ff, 0x8fa8ff, 0x5a5fe0 }, 0xa9c0ff },
-    [MUSE_MODE_IDLE]      = { { 0xf4e8ff, 0xc7a4ff, 0x9a6bff, 0x5b3fd9 }, 0xa77dff },
-    [MUSE_MODE_LISTENING] = { { 0xe8faff, 0x8fdcff, 0x3fa2ff, 0x2a5bd7 }, 0x5cb8ff },
-    [MUSE_MODE_THINKING]  = { { 0xffe6ff, 0xff9cf0, 0xd35bff, 0x7a2bd9 }, 0xe07bff },
-    [MUSE_MODE_SPEAKING]  = { { 0xeafff4, 0x9ff5cf, 0x3fd9a0, 0x1f9a7a }, 0x6ff0bf },
-    [MUSE_MODE_ERROR]     = { { 0xffd6d6, 0xff6b6b, 0xc7304a, 0x6b1a3a }, 0xff5c5c },
-    [MUSE_MODE_OFF]       = { { 0xd8d4ff, 0x8f86d9, 0x5a4fb0, 0x2e2870 }, 0x7c72d0 },
+    /* Neutral in every mode: the pose and animation say what Muse is doing. */
+    [MUSE_MODE_BOOT]      = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
+    [MUSE_MODE_IDLE]      = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
+    [MUSE_MODE_LISTENING] = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
+    [MUSE_MODE_THINKING]  = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
+    [MUSE_MODE_SPEAKING]  = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
+    [MUSE_MODE_ERROR]     = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
+    [MUSE_MODE_OFF]       = { { 0xf0f0f0, 0xc8c8c8, 0x9a9a9a, 0x5a5a5a }, 0xbdbdbd },
 };
 
 /* Cream fur and a peach face. */
@@ -896,7 +897,6 @@ void muse_pixel_render(const muse_pose_t *p)
     }
 
     /* Boot: the avatar pops up from a squash, then opens their eyes. */
-    float boot = mode == MUSE_MODE_BOOT ? clampf(p->mode_t / 1.4f, 0, 1) : 1.0f;
     float pop = mode == MUSE_MODE_BOOT ? clampf(p->mode_t / 0.6f, 0, 1) : 1.0f;
     float squash = 1.0f - (1.0f - pop) * 0.35f + sinf(pop * 3.1416f) * 0.06f;
 
@@ -922,7 +922,7 @@ void muse_pixel_render(const muse_pose_t *p)
 
     float spk_speed = mode == MUSE_MODE_THINKING ? 2.8f : mode == MUSE_MODE_LISTENING ? 1.2f
                     : mode == MUSE_MODE_SPEAKING ? 1.5f : 0.6f;
-    int spk_count = mode == MUSE_MODE_BOOT ? (int)(boot * 6) : (int)(6 * fade);
+    int spk_count = 0;   /* minimal: no sparkles */
     draw_sparkles(p, j.cx, j.cy, false, spk_speed, spk_count);
 
     /* ---- limbs ---- */

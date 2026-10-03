@@ -45,11 +45,11 @@
 #define ROW_H 58
 #define MAX_APS 12
 
-#define COLOR_TEXT 0xf2efff
-#define COLOR_DIM 0x8b84a8
-#define COLOR_CARD 0x1a1530
-#define COLOR_CARD_PRESSED 0x2e2552
-#define COLOR_ACCENT 0xa77dff
+#define COLOR_TEXT 0xf0f0f0
+#define COLOR_DIM 0x8a8a8a
+#define COLOR_CARD 0x1a1a1a
+#define COLOR_CARD_PRESSED 0x2e2e2e
+#define COLOR_ACCENT 0xbdbdbd
 #define COLOR_OK 0x6ff0bf
 #define COLOR_WARN 0xffb45c
 #define COLOR_DANGER 0xff5c5c
@@ -274,7 +274,7 @@ static lv_obj_t *switch_row(lv_obj_t *list, const char *text, bool on, lv_event_
     lv_obj_set_flex_grow(t, 1);
     lv_obj_t *sw = lv_switch_create(c);
     lv_obj_set_size(sw, 60, 32);
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0x3a3358), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0x3a3a3a), LV_PART_MAIN);
     lv_obj_set_style_bg_color(sw, lv_color_hex(COLOR_ACCENT), LV_PART_INDICATOR | LV_STATE_CHECKED);
     if (on) {
         lv_obj_add_state(sw, LV_STATE_CHECKED);
@@ -317,7 +317,7 @@ static lv_obj_t *slider(lv_obj_t *list, const char *text, int lo, int hi, int va
     lv_obj_align(s, LV_ALIGN_TOP_MID, 0, 40);
     lv_slider_set_range(s, lo, hi);
     lv_slider_set_value(s, value, LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(s, lv_color_hex(0x2a2345), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s, lv_color_hex(0x2a2a2a), LV_PART_MAIN);
     lv_obj_set_style_bg_color(s, lv_color_hex(COLOR_ACCENT), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(s, lv_color_hex(COLOR_TEXT), LV_PART_KNOB);
     lv_obj_set_style_pad_all(s, 6, LV_PART_KNOB);
@@ -1035,7 +1035,7 @@ static void build_sound_page(lv_obj_t *tile)
     lv_obj_set_size(s_mic_bar, lv_pct(94), 10);
     lv_obj_align(s_mic_bar, LV_ALIGN_TOP_MID, 0, 26);
     lv_bar_set_range(s_mic_bar, 0, 60);   /* -70..-10 dBFS */
-    lv_obj_set_style_bg_color(s_mic_bar, lv_color_hex(0x2a2345), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_mic_bar, lv_color_hex(0x2a2a2a), LV_PART_MAIN);
     lv_obj_set_style_anim_duration(s_mic_bar, 80, 0);
     note(list, "Talk at arm's length: the bar should reach green (-30 to -15 dBFS) without going orange.");
 

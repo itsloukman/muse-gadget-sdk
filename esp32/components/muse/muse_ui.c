@@ -62,13 +62,14 @@ static const char *TAG = "muse_ui";
 #define SPEAKER_GROW_PX 8       /* how much the speaker button swells while held */
 #define SPEAKER_HOLD_MS 400     /* LVGL's long press */
 
-#define COLOR_DIM 0x8b84a8
-#define COLOR_CAPTION 0xd8d2ff
-#define COLOR_RING_BG 0x140f22
-#define COLOR_METER_OFF 0x1d1733
-#define COLOR_ACCENT 0xa77dff
-#define COLOR_DOT_OFF 0x3a3358
-#define COLOR_LIT 0xf2efff
+/* Neutral greys: the screen is the avatar on black, with no tint. */
+#define COLOR_DIM 0x8a8a8a
+#define COLOR_CAPTION 0xdcdcdc
+#define COLOR_RING_BG 0x141414
+#define COLOR_METER_OFF 0x1c1c1c
+#define COLOR_ACCENT 0xbdbdbd
+#define COLOR_DOT_OFF 0x3a3a3a
+#define COLOR_LIT 0xf0f0f0
 #define SETTINGS_TICK_S 0.25f
 
 /* Text on 128 px screens, as in the button menu (muse_menu.c). */
@@ -768,6 +769,38 @@ static void on_ring_draw(lv_event_t *e)
     layer->_clip_area = clip;
 }
 
+/* Kept for the code that updates it, but never drawn or touched. */
+static void minimal_hide(lv_obj_t *o)
+{
+    if (o) {
+        lv_obj_set_style_opa(o, LV_OPA_TRANSP, 0);
+        lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
+    }
+}
+
+/*
+ * Minimal look: only the avatar and its captions. The ring, status line,
+ * state word, button icons, speaker button, level meter and page dots stay
+ * built (other code shows and hides them) but are transparent. Swiping to
+ * settings still works; the pairing name and code still show when unpaired.
+ */
+static void minimal_chrome(void)
+{
+    minimal_hide(s_ring);
+    minimal_hide(s_bar);
+    minimal_hide(s_wifi_icon ? lv_obj_get_parent(s_wifi_icon) : NULL);   /* the status line */
+    minimal_hide(s_state_lbl);
+    minimal_hide(s_mic_icon);
+    minimal_hide(s_aux_icon);
+    minimal_hide(s_speaker);
+    for (int i = 0; i < METER_SEGS; i++) {
+        minimal_hide(s_meter[i]);
+    }
+    for (int i = 0; i < 2; i++) {
+        minimal_hide(s_dots[i]);
+    }
+}
+
 static void build_screen(void)
 {
     lv_obj_t *scr = lv_screen_active();
@@ -1042,7 +1075,7 @@ static void build_overlays(void)
     lv_obj_set_style_pad_row(s_pair, s_small ? 4 : 10, 0);
     lv_obj_set_style_radius(s_pair, s_small ? 10 : 24, 0);
     lv_obj_set_style_bg_opa(s_pair, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(s_pair, lv_color_hex(0x1a1530), 0);
+    lv_obj_set_style_bg_color(s_pair, lv_color_hex(0x1a1a1a), 0);
     lv_obj_set_style_border_color(s_pair, lv_color_hex(COLOR_ACCENT), 0);
     lv_obj_set_style_border_width(s_pair, 2, 0);
     lv_obj_remove_flag(s_pair, LV_OBJ_FLAG_SCROLLABLE);
@@ -1528,6 +1561,7 @@ esp_err_t muse_ui_start(void)
         muse_menu_build(lv_screen_active(), s_w, s_h);
     }
     build_overlays();
+    minimal_chrome();
     lv_timer_create(frame_tick, muse_board->frame_ms, NULL);
     s_ready = true;
     muse_board->display_unlock();
