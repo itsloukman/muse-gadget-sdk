@@ -130,20 +130,20 @@ static void toggle_phone_setup(void)
 }
 
 /*
- * Aux button: short press sleeps, a 1.5 s hold powers off, any press wakes.
- * Two quick presses toggle BLE phone setup, so the sleep waits a moment to
- * see whether a second press follows.
+ * Aux button: any press wakes, a 1.5 s hold powers off, and two quick presses
+ * toggle BLE phone setup. A short press never sleeps the screen: buttons only
+ * light it up, and the idle timer turns it off.
  */
 static void aux_button(bool pressed, bool edge)
 {
     static int held;
     static bool swallow;
     static bool hinted;
-    static int sleep_in;    /* ticks until a pending single press sleeps */
+    static int sleep_in;    /* ticks left to catch a second press */
     static char saved_caption[64];
 
-    if (sleep_in && --sleep_in == 0) {
-        set_asleep(true, muse_board->aux_button);
+    if (sleep_in) {
+        sleep_in--;
     }
     if (edge && pressed) {
         held = 0;
