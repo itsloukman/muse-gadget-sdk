@@ -32,6 +32,7 @@
 #include "bsp/esp-bsp.h"     /* first: the 1.8 BSP's display.h needs its esp_err.h */
 #include "bsp/display.h"
 #include "bsp/touch.h"
+#include "driver/i2c_master.h"
 #include "driver/i2s_std.h"
 #include "esp_codec_dev_defaults.h"
 #include "esp_check.h"
@@ -57,9 +58,41 @@ static esp_lcd_panel_io_handle_t s_io;
 static esp_lcd_touch_handle_t s_tp;
 static muse_gpio_button_t s_boot;
 
+/*
+ * Waveshare's power-up for the panel and touch (examples/esp-idf/90_axp2101_pmu/
+ * components/board_variant): the TCA9554 at 0x20 holds the panel reset (P0),
+ * its power enable (P1), the touch reset (P2) and the SD card's CS (P7). The
+ * BSP leaves them alone, so after a chip reset the panel can stay dark.
+ */
+static void panel_power_cycle(void)
+{
+    const i2c_device_config_t cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = 0x20,
+        .scl_speed_hz = 400000,
+    };
+    i2c_master_dev_handle_t dev;
+    if (i2c_master_bus_add_device(bsp_i2c_get_handle(), &cfg, &dev) != ESP_OK) {
+        return;
+    }
+    const uint8_t outputs = BIT(0) | BIT(1) | BIT(2) | BIT(7);
+    uint8_t dir[2] = { 0x03, (uint8_t)~outputs };   /* configuration: 0 = output */
+    uint8_t low[2] = { 0x01, BIT(7) };              /* output: everything low but SD CS */
+    uint8_t high[2] = { 0x01, outputs };
+    if (i2c_master_transmit(dev, dir, 2, 50) == ESP_OK && i2c_master_transmit(dev, low, 2, 50) == ESP_OK) {
+        vTaskDelay(pdMS_TO_TICKS(20));
+        i2c_master_transmit(dev, high, 2, 50);
+        vTaskDelay(pdMS_TO_TICKS(150));
+    } else {
+        ESP_LOGW(TAG, "no IO expander: panel not power-cycled");
+    }
+    i2c_master_bus_rm_device(dev);
+}
+
 static esp_err_t init(void)
 {
     ESP_RETURN_ON_ERROR(bsp_i2c_init(), TAG, "i2c init");
+    panel_power_cycle();
     ESP_RETURN_ON_ERROR(muse_gpio_button_init(&s_boot, GPIO_NUM_0), TAG, "boot button");
     /* Only the PMU sees PWR: latch its edges for poll_buttons(). */
     if (muse_pmu_init(bsp_i2c_get_handle(), true) != ESP_OK) {
