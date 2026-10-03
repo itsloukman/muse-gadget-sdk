@@ -32,6 +32,8 @@
 #include "bsp/esp-bsp.h"     /* first: the 1.8 BSP's display.h needs its esp_err.h */
 #include "bsp/display.h"
 #include "bsp/touch.h"
+#include "driver/i2s_std.h"
+#include "esp_codec_dev_defaults.h"
 #include "esp_check.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_log.h"
@@ -165,9 +167,17 @@ static void display_pause(bool pause)
     }
 }
 
+/*
+ * One ES8311 driver for both directions, as on the AIPI and StickS3. The
+ * BSP's speaker and microphone inits each make their own driver for the same
+ * chip and amp pin (GPIO46), and the speaker stays silent.
+ */
 static esp_err_t audio_init(esp_codec_dev_handle_t *spk, esp_codec_dev_handle_t *mic)
 {
-    /* Set up I2S the way muse_audio opens it, instead of the BSP's mono 22 kHz default. */
+    i2s_chan_handle_t tx, rx;
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(CONFIG_BSP_I2S_NUM, I2S_ROLE_MASTER);
+    chan_cfg.auto_clear = true;
+    ESP_RETURN_ON_ERROR(i2s_new_channel(&chan_cfg, &tx, &rx), TAG, "i2s channel");
     const i2s_std_config_t std_cfg = {
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(MUSE_AUDIO_RATE),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
@@ -179,9 +189,33 @@ static esp_err_t audio_init(esp_codec_dev_handle_t *spk, esp_codec_dev_handle_t 
             .din = BSP_I2S_DSIN,
         },
     };
-    ESP_RETURN_ON_ERROR(bsp_audio_init(&std_cfg), TAG, "i2s");
-    *spk = bsp_audio_codec_speaker_init();
-    *mic = bsp_audio_codec_microphone_init();
+    ESP_RETURN_ON_ERROR(i2s_channel_init_std_mode(tx, &std_cfg), TAG, "i2s tx");
+    ESP_RETURN_ON_ERROR(i2s_channel_init_std_mode(rx, &std_cfg), TAG, "i2s rx");
+    ESP_RETURN_ON_ERROR(i2s_channel_enable(tx), TAG, "i2s tx on");
+    ESP_RETURN_ON_ERROR(i2s_channel_enable(rx), TAG, "i2s rx on");
+
+    audio_codec_i2s_cfg_t i2s_cfg = { .port = CONFIG_BSP_I2S_NUM, .rx_handle = rx, .tx_handle = tx };
+    const audio_codec_data_if_t *data_if = audio_codec_new_i2s_data(&i2s_cfg);
+    audio_codec_i2c_cfg_t i2c_cfg = { .port = BSP_I2C_NUM, .addr = ES8311_CODEC_DEFAULT_ADDR, .bus_handle = bsp_i2c_get_handle() };
+    const audio_codec_ctrl_if_t *ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
+    const audio_codec_gpio_if_t *gpio_if = audio_codec_new_gpio();
+    ESP_RETURN_ON_FALSE(data_if && ctrl_if && gpio_if, ESP_ERR_NO_MEM, TAG, "codec interfaces");
+
+    es8311_codec_cfg_t es_cfg = {
+        .ctrl_if = ctrl_if,
+        .gpio_if = gpio_if,
+        .codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH,
+        .pa_pin = BSP_POWER_AMP_IO,
+        .use_mclk = true,
+        .hw_gain = { .pa_voltage = 5.0, .codec_dac_voltage = 3.3 },
+    };
+    const audio_codec_if_t *codec = es8311_codec_new(&es_cfg);
+    ESP_RETURN_ON_FALSE(codec, ESP_FAIL, TAG, "ES8311 not responding");
+
+    esp_codec_dev_cfg_t out_cfg = { .dev_type = ESP_CODEC_DEV_TYPE_OUT, .codec_if = codec, .data_if = data_if };
+    esp_codec_dev_cfg_t in_cfg = { .dev_type = ESP_CODEC_DEV_TYPE_IN, .codec_if = codec, .data_if = data_if };
+    *spk = esp_codec_dev_new(&out_cfg);
+    *mic = esp_codec_dev_new(&in_cfg);
     return *spk && *mic ? ESP_OK : ESP_FAIL;
 }
 
