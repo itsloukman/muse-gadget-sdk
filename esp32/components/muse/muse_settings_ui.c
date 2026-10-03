@@ -95,7 +95,7 @@ static int64_t s_link_reset_armed_us;
 static lv_obj_t *s_ble_sw, *s_ble_status;
 
 /* Sound page. */
-static lv_obj_t *s_spk_sw, *s_vol_val, *s_vol_sl, *s_gain_val, *s_gain_sl, *s_bright_val, *s_bright_sl, *s_mic_bar, *s_mic_val;
+static lv_obj_t *s_spk_sw, *s_voice_sw, *s_vol_val, *s_vol_sl, *s_gain_val, *s_gain_sl, *s_bright_val, *s_bright_sl, *s_mic_bar, *s_mic_val;
 
 /* Sleep page. */
 static const int SLEEP_CHOICES[] = { 0, 30, 60, 120, 300, 600 };
@@ -981,6 +981,11 @@ static void on_speaker_sw(lv_event_t *e)
     muse_settings_set_speaker_on(lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED));
 }
 
+static void on_voice_sw(lv_event_t *e)
+{
+    muse_settings_set_voice_on(lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED));
+}
+
 static void on_volume(lv_event_t *e)
 {
     int v = lv_slider_get_value(s_vol_sl);
@@ -1020,6 +1025,7 @@ static void build_sound_page(lv_obj_t *tile)
     lv_obj_t *list;
     s_sound = page(tile, "SOUND", true, &list);
     s_spk_sw = switch_row(list, "Speaker", muse_settings_speaker_on(), on_speaker_sw);
+    s_voice_sw = switch_row(list, "Spoken replies", muse_settings_voice_on(), on_voice_sw);
     s_vol_sl = slider(list, "Volume", 0, 100, muse_settings_volume(), &s_vol_val, on_volume);
     s_gain_sl = slider(list, "Mic gain", 0, MUSE_MIC_GAIN_MAX / 3, muse_settings_mic_gain() / 3, &s_gain_val, on_gain);
 
