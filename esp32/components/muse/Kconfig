@@ -113,4 +113,23 @@ menu "Muse"
             them. Needs PSRAM. Without it, voice notes go over Home Link's own
             session to its paired VM and replies are shown as text.
 
+    config MUSE_GEMINI_TTS_KEY
+        string "Gemini API key for spoken replies"
+        default ""
+        help
+            With a key, Muse's text replies are spoken through Gemini TTS
+            (muse_tts.c); empty, they're only shown. The key is built into
+            the firmware: set it in your build directory's sdkconfig and
+            never commit it. Needs MUSE_HATCH.
+
+    config MUSE_GEMINI_TTS_MODEL
+        string "Gemini TTS model"
+        default "gemini-3.8-flash-lite-tts"
+
+    config MUSE_GEMINI_TTS_VOICE
+        string "Gemini TTS voice"
+        default "Kore"
+        help
+            A prebuilt Gemini voice, such as Kore, Puck, Zephyr or Charon.
+
 endmenu

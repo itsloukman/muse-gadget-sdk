@@ -69,6 +69,7 @@ extern "C" {
 #include "muse_account_api.h"
 #include "muse_link.h"
 #include "muse_settings.h"
+#include "muse_tts.h"
 #include "muse_wifi.h"
 }
 #include "muse_chat_priv.h"
@@ -236,6 +237,7 @@ struct turn_t {
     /* TTS */
     int tts_msg;             /* message being fetched (or shown, speaker off), or -1 */
     bool silent;             /* speaker off: tts_msg is paced by silence, not fetched */
+    bool gemini;             /* tts_msg is being spoken by Gemini TTS (muse_tts.c) */
     uint8_t *mp3;            /* MP3_BUF */
     size_t mp3_len;
     bool mp3_ended;
@@ -956,6 +958,10 @@ static void turn_finish(void)
     s_turn.dict_id = s_turn.chat_id = 0;
     s_turn.tts_msg = -1;
     s_turn.silent = false;
+    if (s_turn.gemini) {
+        muse_tts_cancel();
+        s_turn.gemini = false;
+    }
     s_turn.mp3_len = 0;
 }
 
@@ -1518,6 +1524,20 @@ static void start_tts(void)
          * and finishes the message once it's drained.
          */
         m.pcm_start = s_turn.pcm_out;
+        if (muse_settings_speaker_on() && muse_settings_voice_on() && s_turn.texts &&
+            muse_tts_start(s_turn.texts + i * TEXT_MAX)) {
+            /* Spoken by Gemini: decode() plays it, and its length times the captions once known. */
+            m.pcm_frames = 0;
+            m.tts = TTS_ACTIVE;
+            s_turn.tts_msg = i;
+            s_turn.silent = false;
+            s_turn.gemini = true;
+            s_turn.down_rate = 0;
+            mark(M_TTS);
+            ESP_LOGI(TAG, "speaking message %s (%u chars)", m.id, (unsigned)m.len);
+            show_reply_start(m);
+            return;
+        }
         m.pcm_frames = (uint32_t)(m.len * MIC_RATE / TEXT_CHARS_PER_S);
         m.tts = TTS_ACTIVE;
         s_turn.tts_msg = i;
@@ -1572,6 +1592,43 @@ static void pace_silently(void)
     }
 }
 
+/* Moves Gemini's speech to the speaker while the reply buffer has room. */
+static void speak_gemini(void)
+{
+    msg_t &m = s_turn.msgs[s_turn.tts_msg];
+    while (xStreamBufferSpacesAvailable(s_out) >= 256 * sizeof(int16_t)) {
+        size_t got = muse_tts_read(s_pcm, 256);
+        if (!got) {
+            break;
+        }
+        int rate = muse_tts_rate();
+        if (s_turn.down_rate != rate) {
+            ESP_LOGI(TAG, "reply audio: %d Hz from Gemini", rate);
+            s_turn.down_rate = rate;
+            resampler_init(&s_turn.down, rate, MIC_RATE);
+        }
+        size_t n = resample(&s_turn.down, s_pcm, got, s_pcm16);
+        if (s_turn.gen == s_gen.load()) {
+            mark(M_AUDIO);
+            xStreamBufferSend(s_out, s_pcm16, n * sizeof(int16_t), 0);
+        }
+        s_turn.pcm_out += n;
+    }
+    if (muse_tts_state() == MUSE_TTS_RUNNING) {
+        return;
+    }
+    s_turn.gemini = false;
+    m.pcm_frames = s_turn.pcm_out - m.pcm_start;
+    if (!m.pcm_frames) {
+        /* Nothing came (no network, say): show it at reading pace instead. */
+        m.pcm_frames = (uint32_t)(m.len * MIC_RATE / TEXT_CHARS_PER_S);
+        s_turn.silent = true;
+        return;
+    }
+    m.tts = TTS_FINISHED;
+    s_turn.tts_msg = -1;
+}
+
 /* Decodes buffered MP3 while the reply buffer has room. */
 static void decode(void)
 {
@@ -1580,6 +1637,10 @@ static void decode(void)
     }
     if (s_turn.silent) {
         pace_silently();
+        return;
+    }
+    if (s_turn.gemini) {
+        speak_gemini();
         return;
     }
     /*
