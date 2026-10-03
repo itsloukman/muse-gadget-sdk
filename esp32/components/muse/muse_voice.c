@@ -251,8 +251,8 @@ static bool record(bool barge_in, size_t *held, char *why, size_t cap)
     if (!s_rec || (muse_hatch_ready() && !s_held_count)) {
         go_live();
     }
-    muse_state_set_caption(s_live ? "LISTENING..." : "RECORDING...");
-    bool heard = false, ok = true;
+    muse_state_set_caption("%s", "");   /* minimal: the listening avatar says it, no status text */
+    bool ok = true;
     bool gave_up = false;   /* Hatch failed this note: it's kept, and goes later */
     char text[96];
     rec_stats_t st = { 0 };
@@ -284,7 +284,6 @@ static bool record(bool barge_in, size_t *held, char *why, size_t cap)
         muse_hatch_ev_t ev;
         while (s_live && (ev = muse_hatch_turn_event(text, sizeof(text))) != MUSE_HATCH_EV_NONE) {
             if (ev == MUSE_HATCH_EV_HEARD && text[0]) {
-                heard = true;
                 muse_state_set_caption("%s", text);
             } else if (ev == MUSE_HATCH_EV_ERROR) {
                 ESP_LOGW(TAG, "muse: %s", text);
@@ -305,9 +304,6 @@ static bool record(bool barge_in, size_t *held, char *why, size_t cap)
             go_live();
         }
         muse_state_set_progress((float)n / MAX_FRAMES);
-        if (!heard && ok && tick) {
-            muse_state_set_caption("%s %.1fs", s_live ? "LISTENING" : "RECORDING", (double)n / MUSE_AUDIO_RATE);
-        }
         /*
          * Capture runs 60-80 ms behind real time and people let go on their
          * last syllable, so keep going briefly after release.
@@ -343,7 +339,7 @@ static void go_idle(const char *caption);
 static bool hatch_reply(bool *delivered)
 {
     muse_state_set_mode(MUSE_MODE_THINKING);
-    muse_state_set_caption("SENDING VOICE NOTE");   /* until there's a transcript or reply */
+    muse_state_set_caption("%s", "");   /* until there's a transcript or reply; the thinking avatar says it */
     static int16_t buf[MUSE_AUDIO_CHUNK];
     static const int16_t silence[MUSE_AUDIO_CHUNK];
     char text[96];
@@ -716,7 +712,7 @@ static bool finish_note(void)
         if (s_live && !fed) {
             /* Hatch is behind (still connecting, say): the rest from the kept note. */
             muse_state_set_mode(MUSE_MODE_THINKING);
-            muse_state_set_caption("SENDING VOICE NOTE");
+            muse_state_set_caption("%s", "");
             fed = feed_rest(s_rec, s_rec_n, &s_sent, false) == FED;
             if (!fed) {
                 muse_hatch_turn_cancel();
