@@ -349,37 +349,6 @@ static float eyes_update(const muse_pose_t *p, float dt)
  * Scene layers
  * ------------------------------------------------------------------------- */
 
-static void draw_aura(float cx, float cy, float radius, float strength)
-{
-    int x0 = (int)(cx - radius - 1), x1 = (int)(cx + radius + 1);
-    int y0 = (int)(cy - radius - 1), y1 = (int)(cy + radius + 1);
-    /* Distances in 1/16 px; the root of d2 / r2 comes from the table. */
-    int32_t cx16 = (int32_t)(cx * 16), r2 = (int32_t)(radius * radius * 256);
-    int32_t to_idx = (int32_t)((float)SQRT_LUT_N * 65536 / r2);
-    int32_t str = QF(strength);
-    for (int y = y0; y <= y1; y++) {
-        int32_t dy = (int32_t)((y + 0.5f - cy) * 1.1f * 16);
-        int32_t dy2 = dy * dy;
-        if (dy2 >= r2) {
-            continue;
-        }
-        for (int x = x0; x <= x1; x++) {
-            int32_t dx = x * 16 + 8 - cx16;
-            int32_t d2 = dx * dx + dy2;
-            if (d2 >= r2) {
-                continue;
-            }
-            int32_t i = ((ONE - s_sqrt[(d2 * to_idx) >> 16]) * str) >> Q;
-            int32_t b = bayer_q(x, y);
-            if (i > QF(0.55f) + ((b * QF(0.35f)) >> Q)) {
-                px(x, y, C_AURA2);
-            } else if (i > (b * QF(0.9f)) >> Q) {
-                px(x, y, C_AURA1);
-            }
-        }
-    }
-}
-
 /* Expanding dotted rings (listening / speaking). */
 static void draw_rings(float cx, float cy, float t, float level, float speed)
 {
@@ -943,9 +912,7 @@ void muse_pixel_render(const muse_pose_t *p)
     j.fy = j.cy - j.b * 0.30f + bob * 0.3f;
 
     /* ---- background layers ---- */
-    float aura_r = 29.0f + level * 4.0f + sinf(t * 1.5f) * 1.0f;
-    float aura_s = (0.75f * boot + level * 0.4f) * fade;
-    draw_aura(j.cx, j.cy - 3, aura_r, aura_s);
+    /* No aura: the avatar stands on plain black, without the accent-coloured glow. */
     if (mode == MUSE_MODE_LISTENING) {
         draw_rings(j.cx, j.fy + 2, t, level, 0.9f);
     } else if (mode == MUSE_MODE_SPEAKING) {
